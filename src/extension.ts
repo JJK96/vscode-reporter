@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as cp from 'child_process';
+import * as process from 'process'
 
 function get_dir(p: string) {
 	let dir = p
@@ -66,7 +67,29 @@ export function activate(context: vscode.ExtensionContext) {
 		cp.exec(command)
 	})
 	context.subscriptions.push(create_evidence);
+	
+	//Run latex workshop build also when dradis/issue files are edited
+	var latexWorkshop = vscode.extensions.getExtension( 'James-Yu.latex-workshop' );
+	if (latexWorkshop) {
+		process.env['LATEXWORKSHOP_CI'] = "true"
+		latexWorkshop.activate().then((api) => {
+			let extension = api.realExtension
+			context.subscriptions.push(vscode.workspace.onDidSaveTextDocument( (e: vscode.TextDocument) => {
+		        if (extension.lwfs.isVirtualUri(e.uri)){
+		            return
+		        }
+		        if (e.languageId == 'textile') {
+		            extension.logger.addLogMessage(`onDidSaveTextDocument triggered: ${e.uri.toString(true)}`)
+		            extension.manager.updateCachedContent(e)
+		            extension.linter.lintRootFileIfEnabled()
+		            void extension.manager.buildOnSaveIfEnabled(e.fileName)
+		            extension.counter.countOnSaveIfEnabled(e.fileName)
+		        }
+		    }))
+		})
+	}
 }
+
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
