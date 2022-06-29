@@ -28,10 +28,12 @@
     "menus": {
       "explorer/context": [
         {
-          "command": "vscode-reporter.create_standard_issue"
+          "command": "vscode-reporter.create_standard_issue",
+          "when": "vscode-reporter.active"
         },
         {
-          "command": "vscode-reporter.create_evidence"
+          "command": "vscode-reporter.create_evidence",
+          "when": "vscode-reporter.active"
         }
       ]
     }
