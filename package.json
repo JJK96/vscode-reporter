@@ -2,6 +2,7 @@
   "name": "vscode-reporter",
   "displayName": "Reporter",
   "description": "Integration for Reporter reporting tool",
+  "repository": "https://github.com/JJK96/vscode-reporter",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.68.0"
