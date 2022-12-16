@@ -15,20 +15,42 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Reporter",
+      "properties": {
+        "vscode-reporter.silent": {
+          "type": "boolean",
+          "default": true,
+          "description": "Do not ask for a new filename for saving an image."
+        }
+      }
+    },
     "commands": [
       {
         "command": "vscode-reporter.create_standard_issue",
-        "title": "Create standard issue"
+        "title": "Reporter: Create standard issue"
+      },
+      {
+        "command": "vscode-reporter.create_issue",
+        "title": "Reporter: Create issue"
       },
       {
         "command": "vscode-reporter.create_evidence",
-        "title": "Create evidence"
+        "title": "Reporter: Create evidence"
+      },
+      {
+        "command": "vscode-reporter.paste_image",
+        "title": "Reporter: Paste image from clipboard"
       }
     ],
     "menus": {
       "explorer/context": [
         {
           "command": "vscode-reporter.create_standard_issue",
+          "when": "vscode-reporter.active"
+        },
+        {
+          "command": "vscode-reporter.create_issue",
           "when": "vscode-reporter.active"
         },
         {
@@ -60,6 +82,8 @@
     "typescript": "^4.7.2"
   },
   "dependencies": {
-    "vscode-cache": "^0.3.0"
+    "vscode-cache": "^0.3.0",
+    "clipboardy": "1.1.4",
+    "is-wsl": "^2.2.0"
   }
 }
