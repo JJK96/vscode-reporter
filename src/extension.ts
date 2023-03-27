@@ -6,6 +6,7 @@ import * as process from 'process';
 import {get_dir, get_root} from './util';
 import {pasteImage} from './image_paste';
 import path = require('path');
+import { fstat } from 'fs';
 const Cache:any = require('vscode-cache');
 
 async function getValuePrompt(choices: Array<string>) {
@@ -38,6 +39,12 @@ export function activate(context: vscode.ExtensionContext) {
 		let locations = cp.execSync(`cd "${get_dir(filename)}"; reporter locations`).toString().split("\n")	
 		cache.put('locations', locations, 5) //Expire after a minute
 		return locations
+	}
+
+	function get_images(filename: string) {
+		// Using a single cache entry for all files. If this gives problems or unexpected behaviour it should be changed
+		let images = cp.execSync(`cd "${get_dir(filename)}"; reporter images`).toString().split("\n")	
+		return images
 	}
 	
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -94,8 +101,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let location_completer = vscode.languages.registerCompletionItemProvider('textile', {
 		provideCompletionItems(document, position, token, context) {
-			let locations = get_locations(document.fileName)
-			return locations.map((l:string) => new vscode.CompletionItem(l))
+			let range_before = new vscode.Range(position.translate(-1), position) 
+			if (document.getText(range_before).startsWith('#[Location]#')) {
+				let locations = get_locations(document.fileName)
+				return locations.map((l:string) => new vscode.CompletionItem(l))
+			} else if (document.getText(range_before).endsWith('\\image{')) {
+				let images = get_images(document.fileName)
+				return images.map((l:string) => new vscode.CompletionItem(l))
+			}
 		}
 	})
 	context.subscriptions.push(location_completer)
