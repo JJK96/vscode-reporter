@@ -7,7 +7,12 @@ import {get_dir, get_root} from './util';
 import {pasteImage} from './image_paste';
 import path = require('path');
 import { fstat } from 'fs';
+import { stringify } from 'querystring';
 const Cache:any = require('vscode-cache');
+
+function shell_escape(str: string): string {
+	return str.replace("'", "\\'")
+}
 
 async function getValuePrompt(choices: Array<string>) {
     return new Promise((resolve) => {
@@ -32,6 +37,7 @@ async function getValuePrompt(choices: Array<string>) {
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 	let cache = new Cache(context)
+	let channel = vscode.window.createOutputChannel("vscode-reporter")
 
 	function get_locations(filename: string) {
 		// Using a single cache entry for all files. If this gives problems or unexpected behaviour it should be changed
@@ -62,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
 		let command = `reporter create-standard-issue -n -s "${standard_issue}"`
 		if (file) {
 			let dir = get_dir(file.path)
-			command = `cd "${dir}"; ${command}`
+			command = `cd '${dir}'; ${command}`
 		}
 		cp.exec(command)
 	});	
@@ -72,10 +78,10 @@ export function activate(context: vscode.ExtensionContext) {
 	let create_issue = vscode.commands.registerCommand('vscode-reporter.create_issue', async (file) => {
 		let title = await getValuePrompt([])
 		if (!title) return;
-		let command = `reporter create-issue -n "${title}"`
+		let command = `reporter create-issue -n '${title}'`
 		if (file) {
 			let dir = get_dir(file.path)
-			command = `cd "${dir}"; ${command}`
+			command = `cd '${dir}'; ${command}`
 		}
 		cp.exec(command)
 	});	
@@ -87,7 +93,7 @@ export function activate(context: vscode.ExtensionContext) {
 		let dir = get_dir(file.path)
 		let locations = get_locations(file.path)
 		let location = await getValuePrompt(locations)
-		let command = `cd "${dir}"; reporter create-evidence "${location}"`
+		let command = `cd '${dir}'; reporter create-evidence '${location}'`
 		cp.exec(command)
 	})
 	context.subscriptions.push(create_evidence);
@@ -114,10 +120,11 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(location_completer)
 	
 	//Run latex workshop build also when dradis/issue files are edited
-	var latexWorkshop = vscode.extensions.getExtension( 'James-Yu.latex-workshop' );
+	/*var latexWorkshop = vscode.extensions.getExtension( 'James-Yu.latex-workshop' );
 	if (latexWorkshop) {
 		process.env['LATEXWORKSHOP_CI'] = "true"
 		latexWorkshop.activate().then((api) => {
+			console.log(api)
 			let extension = api.realExtension
 			context.subscriptions.push(vscode.workspace.onDidSaveTextDocument( (e: vscode.TextDocument) => {
 		        if (extension.lwfs.isVirtualUri(e.uri)){
@@ -132,7 +139,43 @@ export function activate(context: vscode.ExtensionContext) {
 		        }
 		    }))
 		})
+	}*/
+
+	var pdfviewer = vscode.extensions.getExtension('tomoki1207.pdf');
+	if (pdfviewer) {
+		pdfviewer.activate().then((api) => {
+			api.registerOnClickCallback((content: string) => {
+				// Exit the function if the click is somewhere other than a text segment
+				if (content.length > 100 || content.length == 0) return
+
+				let uris = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath)
+				if (uris == undefined) return
+				let split_content = content.split(' ')
+				let first_word = split_content[0]
+				let cmd = `rg -. --no-ignore -g '!**/.cache/output' -n '${shell_escape(first_word)}'`
+				for (const uri of uris) {
+					cmd += ` '${shell_escape(uri)}'`
+				}
+				let search_query = split_content.slice(0, 5).join(' ')
+				cmd += ` | fzf -f '${shell_escape(search_query)}' | head -n 1 | cut -d: -f-2`
+				channel.appendLine(`Searching for: ${cmd}`)
+				let result = cp.execSync(cmd).toString()
+				channel.appendLine(`Result: ${result}`)
+				// vscode.commands.executeCommand('workbench.action.quickOpen', result)
+				let split = result.split(':')
+				let uri = split[0]
+				let line = split[1]
+				vscode.workspace.openTextDocument(uri)
+					.then(document => vscode.window.showTextDocument(document))
+					.then(editor => {
+		                let range = editor.document.lineAt(parseInt(line) - 1).range;
+		                editor.selection =  new vscode.Selection(range.start, range.end);
+		                editor.revealRange(range);			
+					})
+			})
+		})
 	}
+	
 }
 
 
